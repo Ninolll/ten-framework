@@ -2,7 +2,6 @@
 
 import * as React from "react"
 
-import { LoadingButton } from "@/components/Button/LoadingButton"
 import {
   setAgentConnected,
   setMobileActiveTab,
@@ -29,8 +28,54 @@ import SettingsDialog, {
   oceanbaseSettingsFormSchema,
 } from "@/components/Dialog/Settings"
 import { IOceanBaseSettings } from "@/types"
+import { Heart, Sparkles, Flower2 } from "lucide-react"
 
 let intervalId: NodeJS.Timeout | null = null
+
+// 治愈系连接按钮组件
+function HealingConnectButton({ 
+  loading, 
+  agentConnected, 
+  onClick 
+}: {
+  loading: boolean
+  agentConnected: boolean  
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={cn(
+        "healing-button min-w-32 font-medium transition-all duration-300 relative overflow-hidden",
+        loading && "opacity-70 cursor-not-allowed",
+        agentConnected && "bg-gradient-to-r from-red-400 to-red-500 hover:from-red-500 hover:to-red-600"
+      )}
+    >
+      {/* 按钮光效 */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+      
+      <div className="flex items-center gap-2 relative z-10">
+        {loading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span>连接中...</span>
+          </>
+        ) : agentConnected ? (
+          <>
+            <Heart className="w-4 h-4" />
+            <span>结束对话</span>
+          </>
+        ) : (
+          <>
+            <Sparkles className="w-4 h-4 healing-pulse" />
+            <span>开始治愈</span>
+          </>
+        )}
+      </div>
+    </button>
+  )
+}
 
 export default function Action(props: { className?: string }) {
   const { className } = props
@@ -74,7 +119,9 @@ export default function Action(props: { className?: string }) {
         // handle disconnect
         await apiStopService(channel)
         dispatch(setAgentConnected(false))
-        toast.success("Agent disconnected")
+        toast.success("已结束对话，期待下次与你相遇 💚", {
+          description: "记得多关爱自己哦",
+        })
         stopPing()
       } else {
         // handle connect
@@ -149,21 +196,29 @@ export default function Action(props: { className?: string }) {
         if (code != 0) {
           if (code == "10001") {
             toast.error(
-              "The number of users experiencing the program simultaneously has exceeded the limit. Please try again later.",
+              "当前体验人数较多，请稍后再试 🌸",
+              {
+                description: "我们正在为你准备最好的治愈体验"
+              }
             )
           } else {
-            toast.error(`code:${code},msg:${msg}`)
+            toast.error(`连接失败: ${msg}`, {
+              description: "请检查网络或稍后重试"
+            })
           }
           throw new Error(msg)
         }
         dispatch(setAgentConnected(true))
-        toast.success("Agent connected")
+        toast.success("🌟 治愈之旅开始了!", {
+          description: "我在这里倾听你的心声，陪伴你的每一刻"
+        })
         startPing()
       }
     } catch (error) {
       console.error(error)
-      toast.error("Failed to connect/disconnect agent", {
-        description: (error as Error)?.message,
+      const errorMessage = (error as Error)?.message || "未知错误"
+      toast.error("连接遇到问题", {
+        description: errorMessage,
       })
     } finally {
       setLoading(false)
@@ -195,15 +250,20 @@ export default function Action(props: { className?: string }) {
       {/* Action Bar */}
       <div
         className={cn(
-          "mx-2 mt-2 flex items-center justify-between rounded-t-lg bg-[#181a1d] p-2 md:m-2 md:rounded-lg",
+          "mx-2 mt-2 flex items-center justify-between rounded-t-lg p-3 md:m-2 md:rounded-lg",
+          "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100",
+          "backdrop-blur-sm",
           className,
         )}
       >
         {/* -- Description Part */}
         <div className="hidden md:block">
-          <span className="text-sm font-bold">Description</span>
-          <span className="ml-2 text-xs text-muted-foreground">
-            A Realtime Conversational AI Agent powered by TEN
+          <div className="flex items-center gap-2">
+            <Flower2 className="w-5 h-5 text-green-500 healing-pulse" />
+            <span className="text-sm font-bold text-green-800">治愈描述</span>
+          </div>
+          <span className="ml-7 text-xs text-green-600 opacity-80">
+            与AI心理伴侣开启一场温暖的对话，在这里找到内心的平静与力量
           </span>
         </div>
 
@@ -212,9 +272,13 @@ export default function Action(props: { className?: string }) {
           className="w-[400px] md:hidden"
           onValueChange={onChangeMobileActiveTab}
         >
-          <TabsList>
+          <TabsList className="bg-green-100 border border-green-200">
             {Object.values(EMobileActiveTab).map((tab) => (
-              <TabsTrigger key={tab} value={tab} className="w-24 text-sm">
+              <TabsTrigger 
+                key={tab} 
+                value={tab} 
+                className="w-24 text-sm data-[state=active]:bg-white data-[state=active]:text-green-700"
+              >
                 {MOBILE_ACTIVE_TAB_MAP[tab]}
               </TabsTrigger>
             ))}
@@ -222,22 +286,13 @@ export default function Action(props: { className?: string }) {
         </Tabs>
 
         {/* -- Action Button */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
           <SettingsDialog />
-          <LoadingButton
-            onClick={onClickConnect}
-            variant={!agentConnected ? "default" : "destructive"}
-            size="sm"
-            className="w-fit min-w-24"
+          <HealingConnectButton
             loading={loading}
-            svgProps={{ className: "h-4 w-4 text-muted-foreground" }}
-          >
-            {loading
-              ? "Connecting"
-              : !agentConnected
-                ? "Connect"
-                : "Disconnect"}
-          </LoadingButton>
+            agentConnected={agentConnected}
+            onClick={onClickConnect}
+          />
         </div>
       </div>
     </>
